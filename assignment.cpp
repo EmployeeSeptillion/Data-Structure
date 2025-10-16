@@ -3,6 +3,8 @@
 #include <sstream>
 #include <string>
 #include <set>
+#include <ctime>
+#include <iomanip>
 
 using namespace std;
 
@@ -353,6 +355,14 @@ public:
         sortByScore();
         MatchResultNode * current = head;
         int count = 0;
+        int nonZero = 0;
+        MatchResultNode* check = head;
+        while (check != nullptr) {
+            if (check->score > 0.0)
+                nonZero++;
+            check = check->next;
+        }
+        cout << "DEBUG → non-zero scores: " << nonZero << endl;
         
         cout << "\n=== TOP JOB MATCHES ===" << endl;
         while (current != NULL && count < limit) {
@@ -567,7 +577,20 @@ void loadJobs(const string &filename, JobLinkedList &jobs) {
     ifstream file(filename);
     string line;
     while (getline(file, line)) {
-        jobs.insertAtEnd(line); 
+        if (line.empty()) continue;
+
+        JobNode* newNode = new JobNode;
+        newNode->jobDescription = line;                 // full text, keep commas
+        newNode->jobId = "job_" + to_string(jobs.size + 1);
+        newNode->next = nullptr;
+
+        if (jobs.head == nullptr)
+            jobs.head = jobs.tail = newNode;
+        else {
+            jobs.tail->next = newNode;
+            jobs.tail = newNode;
+        }
+        jobs.size++;
     }
     file.close();
 }
@@ -576,10 +599,93 @@ void loadResumes(const string &filename, ResumeLinkedList &resumes) {
     ifstream file(filename);
     string line;
     while (getline(file, line)) {
-        resumes.insertAtEnd(line);
+        if (line.empty()) continue;
+
+        ResumeNode* newNode = new ResumeNode;
+        newNode->resumeDescription = line;              // full text, keep commas
+        newNode->resumeId = "resume_" + to_string(resumes.size + 1);
+        newNode->next = nullptr;
+
+        if (resumes.head == nullptr)
+            resumes.head = resumes.tail = newNode;
+        else {
+            resumes.tail->next = newNode;
+            resumes.tail = newNode;
+        }
+        resumes.size++;
     }
     file.close();
 }
+
+void displayTopCandidatePerJob(MatchResultLinkedList& results, JobLinkedList& jobs) {
+    cout << "\n=== TOP 3 CANDIDATES FOR EACH JOB ===\n";
+
+    JobNode* job = jobs.head;
+    while (job != NULL) {
+        // collect all matches for this job into a temporary list
+        MatchResultLinkedList temp;
+        MatchResultNode* curr = results.head;
+        while (curr != NULL) {
+            if (curr->jobId == job->jobId)
+                temp.insertResult(curr->resumeId, curr->jobId, curr->score);
+            curr = curr->next;
+        }
+
+        if (temp.size > 0) {
+            temp.sortByScore();
+            cout << "\nJob: " << job->jobId << " → Top 3 Candidates:\n";
+            cout << left << setw(12) << "Resume ID"
+                 << setw(8)  << "Score" << endl;
+            cout << string(20, '-') << endl;
+
+            MatchResultNode* p = temp.head;
+            int count = 0;
+            while (p != NULL && count < 3) {
+                cout << left << setw(12) << p->resumeId
+                     << setw(8)  << fixed << setprecision(1) << p->score << endl;
+                p = p->next;
+                count++;
+            }
+        }
+        job = job->next;
+    }
+}
+
+
+void displayBestJobPerResume(MatchResultLinkedList& results, ResumeLinkedList& resumes) {
+    cout << "\n=== TOP 3 JOBS FOR EACH RESUME ===\n";
+
+    ResumeNode* res = resumes.head;
+    while (res != NULL) {
+        // collect all matches for this resume into a temporary list
+        MatchResultLinkedList temp;
+        MatchResultNode* curr = results.head;
+        while (curr != NULL) {
+            if (curr->resumeId == res->resumeId)
+                temp.insertResult(curr->resumeId, curr->jobId, curr->score);
+            curr = curr->next;
+        }
+
+        if (temp.size > 0) {
+            temp.sortByScore();
+            cout << "\nResume: " << res->resumeId << " → Top 3 Jobs:\n";
+            cout << left << setw(12) << "Job ID"
+                 << setw(8)  << "Score" << endl;
+            cout << string(20, '-') << endl;
+
+            MatchResultNode* p = temp.head;
+            int count = 0;
+            while (p != NULL && count < 3) {
+                cout << left << setw(12) << p->jobId
+                     << setw(8)  << fixed << setprecision(1) << p->score << endl;
+                p = p->next;
+                count++;
+            }
+        }
+        res = res->next;
+    }
+}
+
 
 int main(){
     JobLinkedList jobs;
@@ -588,8 +694,8 @@ int main(){
     MatchResultLinkedList matchResults;
 
     cout << "Loading job descriptions and resumes..." << endl;
-    loadJobs("job_description.csv", jobs);
-    loadResumes("resume.csv", resumes);
+    loadJobs("data/job_description.csv", jobs);
+    loadResumes("data/resume.csv", resumes);
     initializeSkillWeights(skillWeights);
 
     cout << "Jobs loaded: " << jobs.getSize() << endl;
@@ -599,10 +705,21 @@ int main(){
     cout << "\nPerforming job matching with weighted scoring..." << endl;
     PerformanceMetrics metrics = performJobMatching(jobs, resumes, skillWeights, matchResults);
 
+    //Display results
+    matchResults.sortByScore();
+    matchResults.displayTopMatches(10);
+    displayTopCandidatePerJob(matchResults, jobs);
+    displayBestJobPerResume(matchResults, resumes);
+
+    //3. Performance summary (AFTER displaying everything)
     cout << "\n=== PERFORMANCE EVALUATION ===" << endl;
-    cout << "Matching Time: " << metrics.matchingTime << " ms" << endl;
+    cout << "Matching Time: " << fixed << setprecision(2) << metrics.matchingTime << " ms" << endl;
     cout << "Estimated Memory Used: " << metrics.memoryUsed << " bytes" << endl;
     cout << "Total Matches Calculated: " << metrics.totalMatches << endl;
 
+    //4. Wait for user before program ends
+    cout << "\nPress Enter to exit...";
+    cin.ignore();
+    cin.get(); // pause until Enter pressed
     return 0;
 }
