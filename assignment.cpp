@@ -297,55 +297,45 @@ public:
     }
 
     void insertResult(string resumeId, string jobId, double score) {
+        // Skip inserting useless zero scores to save time and memory
+        if (score <= 0.0) return;
+
         MatchResultNode * newNode = new MatchResultNode;
-        newNode -> resumeId = resumeId;
-        newNode -> jobId = jobId;
-        newNode -> score = score;
-        newNode -> next = NULL;
-        
-        if (head == NULL) {
+        newNode->resumeId = resumeId;
+        newNode->jobId = jobId;
+        newNode->score = score;
+        newNode->next = NULL;
+
+        if (head == NULL)
             head = tail = newNode;
-        } else {
+        else {
             tail->next = newNode;
             tail = newNode;
         }
         size++;
     }
 
-    /*Bubble sort for sorting results by score (descending)*/
+    /*Bubble sort for sorting results by score (descending) — kept only for top-10 display*/
     void sortByScore() {
-        /*if the list is empty*/
-        if (head == NULL || head -> next == NULL) return;
-        
-        /*swap nodes to sort*/
+        if (head == NULL || head->next == NULL) return;
         bool swapped;
         do {
             swapped = false;
             MatchResultNode * current = head;
             MatchResultNode * prev = NULL;
-            
-            while (current != NULL && current -> next != NULL) {
-                if (current -> score < current -> next -> score) {
-                    // Swap nodes
-                    MatchResultNode* nextNode = current -> next;
-                    current -> next = nextNode -> next;
-                    nextNode -> next = current;
-                    
-                    if (prev == NULL) {
-                        head = nextNode;
-                    } else {
-                        prev -> next = nextNode;
-                    }
-                    
-                    if (current -> next == NULL) {
-                        tail = current;
-                    }
-                    
+            while (current && current->next) {
+                if (current->score < current->next->score) {
+                    MatchResultNode * nextNode = current->next;
+                    current->next = nextNode->next;
+                    nextNode->next = current;
+                    if (prev == NULL) head = nextNode;
+                    else prev->next = nextNode;
+                    if (current->next == NULL) tail = current;
                     prev = nextNode;
                     swapped = true;
                 } else {
                     prev = current;
-                    current = current -> next;
+                    current = current->next;
                 }
             }
         } while (swapped);
@@ -354,36 +344,29 @@ public:
     void displayTopMatches(int limit) {
         sortByScore();
         MatchResultNode * current = head;
-        int count = 0;
-        int nonZero = 0;
-        MatchResultNode* check = head;
-        while (check != nullptr) {
-            if (check->score > 0.0)
-                nonZero++;
-            check = check->next;
-        }
+        int count = 0, nonZero = 0;
+        for (MatchResultNode* check = head; check; check = check->next)
+            if (check->score > 0.0) nonZero++;
+
         cout << "DEBUG → non-zero scores: " << nonZero << endl;
-        
         cout << "\n=== TOP JOB MATCHES ===" << endl;
-        while (current != NULL && count < limit) {
-            cout << "Resume: " << current -> resumeId 
-                 << " -> Job: " << current -> jobId 
-                 << " | Score: " << current -> score << endl;
-            current = current -> next;
+        while (current && count < limit) {
+            cout << left << setw(12) << current->resumeId
+     << setw(12) << current->jobId
+     << setw(8)  << fixed << setprecision(1) << current->score << endl;
+
+            current = current->next;
             count++;
         }
     }
 
     void clear() {
-        MatchResultNode* current = head;
-        while (head != NULL) {
-            current = head -> next;
-            delete head;
-            head = current;
-        }
-        size = 0;
+        MatchResultNode* c = head;
+        while (c) { auto d = c; c = c->next; delete d; }
+        head = tail = NULL; size = 0;
     }
 };
+
 
 /*Function to extract words from text and build word frequency list*/
 WordLinkedList extractWords(string text) {
@@ -531,7 +514,7 @@ PerformanceMetrics performJobMatching(JobLinkedList& jobs, ResumeLinkedList& res
             jobCount++;
             completedComparisons++;
 
-            if (completedComparisons % 100 == 0 || completedComparisons == totalComparisons) {
+            if (completedComparisons % 10000 == 0 || completedComparisons == totalComparisons) {
                 double progress = (double)completedComparisons / totalComparisons * 100.0;
                 cout << "\rProgress: " << completedComparisons << "/" << totalComparisons 
                      << " (" << fixed << setprecision(1) << progress << "%)";
@@ -544,8 +527,10 @@ PerformanceMetrics performJobMatching(JobLinkedList& jobs, ResumeLinkedList& res
                 skillWeights
             );
             
-            results.insertResult(resumeCurrent -> resumeId, jobCurrent -> jobId, score);
-            metrics.totalMatches++;
+            if (score > 0.0) {        // store only meaningful results
+                results.insertResult(resumeCurrent->resumeId, jobCurrent->jobId, score);
+                metrics.totalMatches++;
+            }
             
             jobCurrent = jobCurrent -> next;
         }
@@ -690,36 +675,75 @@ void displayBestJobPerResume(MatchResultLinkedList& results, ResumeLinkedList& r
 int main(){
     JobLinkedList jobs;
     ResumeLinkedList resumes;
-    SkillWeightLinkedList skillWeights;
     MatchResultLinkedList matchResults;
 
-    cout << "Loading job descriptions and resumes..." << endl;
-    loadJobs("data/job_description.csv", jobs);
-    loadResumes("data/resume.csv", resumes);
-    initializeSkillWeights(skillWeights);
+    cout << "Loading job descriptions...\n";
+    loadJobs(jobs);
+    cout << "Loading resume descriptions...\n";
+    loadResumes(resumes);
+    cout << "Data loaded successfully.\n";
 
-    cout << "Jobs loaded: " << jobs.getSize() << endl;
-    cout << "Resumes loaded: " << resumes.getSize() << endl;
-    cout << "Skills with weights: " << skillWeights.size << endl;
+    int choice = 0;
+    do {
+        cout << "\n=== Job Matching System (Linked List Implementation) ===\n";
+        cout << "1. Find Top 5 Jobs for a Resume\n";
+        cout << "2. Find Top 5 Candidates for a Job\n";
+        cout << "3. Run Full Matching Performance Test\n";
+        cout << "4. Exit\n";
+        cout << "Choose an option: ";
+        cin >> choice;
 
-    cout << "\nPerforming job matching with weighted scoring..." << endl;
-    PerformanceMetrics metrics = performJobMatching(jobs, resumes, skillWeights, matchResults);
+        if (choice == 1) {
+            int resumeIndex;
+            cout << "\nEnter Resume index (1 - " << resumes.size << "): ";
+            cin >> resumeIndex;
+            if (resumeIndex < 1 || resumeIndex > resumes.size) {
+                cout << "Invalid resume index.\n";
+                continue;
+            }
 
-    //Display results
-    matchResults.sortByScore();
-    matchResults.displayTopMatches(10);
-    displayTopCandidatePerJob(matchResults, jobs);
-    displayBestJobPerResume(matchResults, resumes);
+            clock_t start = clock();
+            displayBestJobPerResume(resumes, jobs, resumeIndex, 5);
+            clock_t end = clock();
+            double elapsed = ((double)(end - start)) / CLOCKS_PER_SEC;
+            cout << "\n[Time Taken: " << fixed << setprecision(2) << elapsed << " seconds]\n";
+        }
 
-    //3. Performance summary (AFTER displaying everything)
-    cout << "\n=== PERFORMANCE EVALUATION ===" << endl;
-    cout << "Matching Time: " << fixed << setprecision(2) << metrics.matchingTime << " ms" << endl;
-    cout << "Estimated Memory Used: " << metrics.memoryUsed << " bytes" << endl;
-    cout << "Total Matches Calculated: " << metrics.totalMatches << endl;
+        else if (choice == 2) {
+            int jobIndex;
+            cout << "\nEnter Job index (1 - " << jobs.size << "): ";
+            cin >> jobIndex;
+            if (jobIndex < 1 || jobIndex > jobs.size) {
+                cout << "Invalid job index.\n";
+                continue;
+            }
 
-    //4. Wait for user before program ends
-    cout << "\nPress Enter to exit...";
-    cin.ignore();
-    cin.get(); // pause until Enter pressed
-    return 0;
-}
+            clock_t start = clock();
+            displayTopCandidatePerJob(resumes, jobs, jobIndex, 5);
+            clock_t end = clock();
+            double elapsed = ((double)(end - start)) / CLOCKS_PER_SEC;
+            cout << "\n[Time Taken: " << fixed << setprecision(2) << elapsed << " seconds]\n";
+        }
+
+        else if (choice == 3) {
+            cout << "\nRunning performance test on all resumes and jobs...\n";
+            clock_t start = clock();
+            performJobMatching(resumes, jobs, matchResults);
+            clock_t end = clock();
+            double elapsed = ((double)(end - start)) / CLOCKS_PER_SEC;
+            cout << "Performance test completed in " << fixed << setprecision(2) << elapsed << " seconds.\n";
+        }
+
+        else if (choice == 4) {
+            cout << "Exiting system. Goodbye!\n";
+            break;
+        }
+
+        else {
+            cout << "Invalid option. Try again.\n";
+        }
+
+    } while (choice != 4);
+
+        return 0;
+    }
