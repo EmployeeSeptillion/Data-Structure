@@ -1,5 +1,3 @@
-// assignment.cpp  — keep original style; now bubble-sorts a LINKED LIST for Top-5
-// Note: bubble-sort timing added to Option 1 & 2 (like perf test)
 
 #include <iostream>
 #include <fstream>
@@ -9,29 +7,41 @@
 #include <algorithm>
 using namespace std;
 
+// singly linked list node for jobs
 struct JobNode {
     string jobId;
     string jobDescription;
     JobNode* next;
 };
 
+// singly linked list node for resumes
 struct ResumeNode {
     string resumeId;
     string resumeDescription;
     ResumeNode* next;
 };
 
+// singly linked list node for skillweight pairs with keyword scoring
 struct SkillWeightNode {
     string skill;
     double weight;
     SkillWeightNode* next;
 };
 
+// tiny record used to store top 5 buffered records
 struct TopMatch {
     string id;
     double score;
 };
 
+//for bubble-sort a linked list 
+// small singly linked list node just for sorting/printing the top-5
+struct TopMatchNode { 
+    string id; 
+    double score;
+    TopMatchNode* next; };
+
+// simple singly linked list holder for skills
 class SkillWeightLinkedList {
 public:
     SkillWeightNode* head = NULL;
@@ -46,6 +56,7 @@ public:
     }
 };
 
+// singly linked list holders for jobs and resumes
 class JobLinkedList {
 public:
     JobNode* head = NULL;
@@ -60,6 +71,7 @@ public:
     int size = 0;
 };
 
+// bunch of skills with weights with keywords are lowercase on purpose
 void initializeSkillWeights(SkillWeightLinkedList& skillWeights) {
     skillWeights.insertSkill("data", 10);
     skillWeights.insertSkill("sql", 10);
@@ -104,6 +116,13 @@ void initializeSkillWeights(SkillWeightLinkedList& skillWeights) {
     skillWeights.insertSkill("analytical", 7);
 }
 
+// simple keyword scoring:
+// - lower both texts for normalization
+// - totalWeight = sum of all skill weights
+// - matchedWeight += w if job & resume both contain the skill
+// - matchedWeight -= 0.3*w if job has it but resume doesnt have it (light penalty)
+// - final score = (matchedWeight / totalWeight)*100, then clamped to [0..100]
+// - bonus rule: if job mentions at least one skill and match or exceed total, push to 100
 double calculateWeightedScore(string resume, string job, SkillWeightLinkedList& weights) {
     transform(resume.begin(), resume.end(), resume.begin(), ::tolower);
     transform(job.begin(), job.end(), job.begin(), ::tolower);
@@ -112,6 +131,7 @@ double calculateWeightedScore(string resume, string job, SkillWeightLinkedList& 
     double matchedWeight = 0.0;
     int jobSkillCount = 0;
 
+    // linear search over the skills list
     SkillWeightNode* current = weights.head;
     while (current) {
         totalWeight += current->weight;
@@ -138,6 +158,7 @@ double calculateWeightedScore(string resume, string job, SkillWeightLinkedList& 
     return score;
 }
 
+// load csv with skipping header then append nodes at tail
 void loadJobs(JobLinkedList& jobs) {
     ifstream file("data/job_description.csv");
     if (!file.is_open()) { cerr << "Cannot open job_description.csv\n"; return; }
@@ -166,24 +187,8 @@ void loadResumes(ResumeLinkedList& resumes) {
     file.close();
 }
 
-void displayTopMatches(string baseId, string baseType, double scores[], string ids[], int total, int topN) {
-    for (int i = 0; i < total - 1; i++) {
-        for (int j = 0; j < total - i - 1; j++) {
-            if (scores[j] < scores[j] + 1) { /* keeps original style; not used now */ }
-            if (scores[j] < scores[j + 1]) {
-                swap(scores[j], scores[j + 1]);
-                swap(ids[j], ids[j + 1]);
-            }
-        }
-    }
-    cout << "\nTop " << topN << " results for " << baseType << " " << baseId << ":\n";
-    for (int i = 0; i < topN && i < total; i++) {
-        if (scores[i] > 0)
-            cout << setw(12) << ids[i] << " | Score: " << fixed << setprecision(2) << scores[i] << endl;
-    }
-}
-
-// helper to maintain top 5
+//just to keep the top 5 result
+//idea is to replace current min with new score that beats it
 void keepTopFive(TopMatch top5[], int &count, string id, double score) {
     if (count < 5) {
         top5[count++] = {id, score};
@@ -196,9 +201,9 @@ void keepTopFive(TopMatch top5[], int &count, string id, double score) {
     }
 }
 
-/* ===== Linked-list bubble sort for Top-5 (used in Options 1, 2, and perf timing) ===== */
-struct TopMatchNode { string id; double score; TopMatchNode* next; };
 
+
+// quick adapter: build a short singly linked list from the top-5 array
 TopMatchNode* topArrayToList(TopMatch a[], int n){
     TopMatchNode* head = NULL;
     TopMatchNode** tail = &head;
@@ -209,6 +214,7 @@ TopMatchNode* topArrayToList(TopMatch a[], int n){
     return head;
 }
 
+// classic bubble sort for singly linked list by swapping pointers, desc by score, stable by id
 void bubbleSortListDesc(TopMatchNode*& head){
     if(!head) return;
     bool swapped;
@@ -229,17 +235,16 @@ void bubbleSortListDesc(TopMatchNode*& head){
     } while(swapped);
 }
 
+// clean up that tiny list
 void freeTopList(TopMatchNode*& head){
     while(head){ TopMatchNode* d=head; head=head->next; delete d; }
 }
 
-/* ============================= Top 5 Queries ============================= */
-
-// Find Top 5 Jobs for a given Resume
+// option 1: pick a resume then scan all jobs in linked list, then, store in top-5 array, and make it a tiny linked list, bubble sort it for output
 void findTopJobsForResume(ResumeLinkedList &resumes, JobLinkedList &jobs,
                           SkillWeightLinkedList &skills, int resumeIndex) {
 
-    // navigate to target resume
+    // linear search to the target resume
     ResumeNode *resume = resumes.head;
     for (int i = 1; i < resumeIndex && resume; i++) resume = resume->next;
     if (!resume) {
@@ -250,7 +255,7 @@ void findTopJobsForResume(ResumeLinkedList &resumes, JobLinkedList &jobs,
     TopMatch top5[5];
     int count = 0;
 
-    // measure scan phase
+    // count how much we scanned and how many non-zero scores we saw
     int scanned = 0, positive = 0;
     clock_t scanBeg = clock();
 
@@ -265,7 +270,7 @@ void findTopJobsForResume(ResumeLinkedList &resumes, JobLinkedList &jobs,
     }
     clock_t scanEnd = clock();
 
-    // measure linked-list bubble sort of Top-5
+    // now do the linked-list bubble sort just for these 5 which shows the sorting
     clock_t sortBeg = clock();
     TopMatchNode* lst = topArrayToList(top5, count);
     bubbleSortListDesc(lst);
@@ -288,11 +293,11 @@ void findTopJobsForResume(ResumeLinkedList &resumes, JobLinkedList &jobs,
     freeTopList(lst);
 }
 
-// Find Top 5 Resumes for a given Job
+// option 2: pick a job then scan all resumes in linked list, then, store in top-5 array, and make it a tiny linked list, bubble sort it for output
 void findTopResumesForJob(ResumeLinkedList &resumes, JobLinkedList &jobs,
                           SkillWeightLinkedList &skills, int jobIndex) {
 
-    // navigate to target job
+    // linear search to the target job
     JobNode *job = jobs.head;
     for (int i = 1; i < jobIndex && job; i++) job = job->next;
     if (!job) {
@@ -303,7 +308,6 @@ void findTopResumesForJob(ResumeLinkedList &resumes, JobLinkedList &jobs,
     TopMatch top5[5];
     int count = 0;
 
-    // measure scan phase
     int scanned = 0, positive = 0;
     clock_t scanBeg = clock();
 
@@ -318,7 +322,6 @@ void findTopResumesForJob(ResumeLinkedList &resumes, JobLinkedList &jobs,
     }
     clock_t scanEnd = clock();
 
-    // measure linked-list bubble sort of Top-5
     clock_t sortBeg = clock();
     TopMatchNode* lst = topArrayToList(top5, count);
     bubbleSortListDesc(lst);
@@ -341,9 +344,8 @@ void findTopResumesForJob(ResumeLinkedList &resumes, JobLinkedList &jobs,
     freeTopList(lst);
 }
 
-/* ============================ Performance Test ============================ */
-/* Old behavior: scan ALL resumes for the first 10 jobs.
-   We still keep a small Top-5 array, but the measured sort uses LINKED LIST bubble sort. */
+// option 3: quick performance run — first 10 jobs × scan all resumes.
+// keeping a per-job top-5 and time the linked-list bubble sort on that tiny list.
 void runPerformanceTest(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWeightLinkedList& skillWeights) {
     cout << "\n=== Performance Test ===\n";
 
@@ -358,7 +360,7 @@ void runPerformanceTest(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWei
     double totalSortTime = 0.0;
 
     auto estimateMemoryUsage = [](int jobCount, int resumeCount) -> double {
-        return (jobCount + resumeCount) * 200.0 / 1024.0;
+        return (jobCount + resumeCount) * 200.0 / 1024.0; 
     };
 
     JobNode* jobPtr = jobs.head;
@@ -372,6 +374,7 @@ void runPerformanceTest(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWei
         TopMatch top5[5];
         int topCount = 0;
 
+        // linear scan over all resumes for this job
         while (resPtr) {
             double score = calculateWeightedScore(resPtr->resumeDescription, jobPtr->jobDescription, skillWeights);
             if (score > 0.0) matchCount++;
@@ -379,7 +382,7 @@ void runPerformanceTest(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWei
             resPtr = resPtr->next;
         }
 
-        // measure LINKED LIST bubble sort time on Top-5
+        // time the linked-list bubble sort (top-5 only)
         clock_t sortStart = clock();
         TopMatchNode* lst = topArrayToList(top5, topCount);
         bubbleSortListDesc(lst);
