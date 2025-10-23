@@ -1,6 +1,3 @@
-// assignment.cpp  — keep original style; now bubble-sorts a LINKED LIST for Top-5
-// Note: bubble-sort timing added to Option 1 & 2 (like perf test)
-
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -186,7 +183,7 @@ void displayTopMatches(string baseId, string baseType, double scores[], string i
 // helper to maintain top 5
 void keepTopFive(TopMatch top5[], int &count, string id, double score) {
     if (count < 5) {
-        top5[count++] = {id, score};
+        top5[count++] = {id, score};  
     } else {
         int minIndex = 0;
         for (int i = 1; i < 5; i++)
@@ -196,48 +193,22 @@ void keepTopFive(TopMatch top5[], int &count, string id, double score) {
     }
 }
 
-/* ===== Linked-list bubble sort for Top-5 (used in Options 1, 2, and perf timing) ===== */
-struct TopMatchNode { string id; double score; TopMatchNode* next; };
-
-TopMatchNode* topArrayToList(TopMatch a[], int n){
-    TopMatchNode* head = NULL;
-    TopMatchNode** tail = &head;
-    for(int i=0;i<n;i++){
-        *tail = new TopMatchNode{a[i].id, a[i].score, NULL};
-        tail = &((*tail)->next);
-    }
-    return head;
-}
-
-void bubbleSortListDesc(TopMatchNode*& head){
-    if(!head) return;
-    bool swapped;
-    do{
-        swapped = false;
-        TopMatchNode *prev = NULL, *cur = head;
-        while(cur && cur->next){
-            if (cur->score < cur->next->score ||
-               (cur->score == cur->next->score && cur->id > cur->next->id)){
-                TopMatchNode* nxt = cur->next;
-                cur->next = nxt->next; nxt->next = cur;
-                if (prev) prev->next = nxt; else head = nxt;
-                prev = nxt; swapped = true;
-            } else {
-                prev = cur; cur = cur->next;
+// Sort TopMatch array by score (DESC). Tie-break by id (ASC) for stability.
+void bubbleSortTop(TopMatch a[], int n){
+    for (int i = 0; i < n - 1; ++i){
+        for (int j = 0; j < n - 1 - i; ++j){
+            if (a[j].score < a[j+1].score ||
+               (a[j].score == a[j+1].score && a[j].id > a[j+1].id)){
+                swap(a[j], a[j+1]);
             }
         }
-    } while(swapped);
+    }
 }
-
-void freeTopList(TopMatchNode*& head){
-    while(head){ TopMatchNode* d=head; head=head->next; delete d; }
-}
-
-/* ============================= Top 5 Queries ============================= */
 
 // Find Top 5 Jobs for a given Resume
 void findTopJobsForResume(ResumeLinkedList &resumes, JobLinkedList &jobs,
                           SkillWeightLinkedList &skills, int resumeIndex) {
+    clock_t start = clock();
 
     // navigate to target resume
     ResumeNode *resume = resumes.head;
@@ -250,47 +221,32 @@ void findTopJobsForResume(ResumeLinkedList &resumes, JobLinkedList &jobs,
     TopMatch top5[5];
     int count = 0;
 
-    // measure scan phase
-    int scanned = 0, positive = 0;
-    clock_t scanBeg = clock();
-
     JobNode *job = jobs.head;
     while (job) {
         double score = calculateWeightedScore(resume->resumeDescription,
                                               job->jobDescription, skills);
         keepTopFive(top5, count, job->jobId, score);
-        if (score > 0.0) positive++;
-        scanned++;
         job = job->next;
     }
-    clock_t scanEnd = clock();
 
-    // measure linked-list bubble sort of Top-5
-    clock_t sortBeg = clock();
-    TopMatchNode* lst = topArrayToList(top5, count);
-    bubbleSortListDesc(lst);
-    clock_t sortEnd = clock();
+    clock_t end = clock();
+    double elapsed = double(end - start) / CLOCKS_PER_SEC;
 
-    cout.setf(std::ios::fixed);
-    cout << setprecision(2);
+    cout << "\nExecution time: " << fixed << setprecision(2)
+         << elapsed << " seconds\n";
+
+    // sort before printing
+    bubbleSortTop(top5, count);
 
     cout << "\nTop 5 results for Resume " << resume->resumeId << ":\n";
-    int printed = 0;
-    for(TopMatchNode* p = lst; p && printed < count; p = p->next, ++printed)
-        cout << "  " << p->id << " | Score: " << p->score << endl;
-
-    cout << "Scanned jobs: " << scanned
-         << "  | Positive matches (>0): " << positive << "\n";
-    cout << "Time (scan): " << double(scanEnd - scanBeg) / CLOCKS_PER_SEC << " s\n";
-    cout << "Time (bubble sort Top-5, linked list): "
-         << double(sortEnd - sortBeg) / CLOCKS_PER_SEC << " s\n";
-
-    freeTopList(lst);
+    for (int i = 0; i < count; i++)
+        cout << "  " << top5[i].id << " | Score: " << top5[i].score << endl;
 }
 
 // Find Top 5 Resumes for a given Job
 void findTopResumesForJob(ResumeLinkedList &resumes, JobLinkedList &jobs,
                           SkillWeightLinkedList &skills, int jobIndex) {
+    clock_t start = clock();
 
     // navigate to target job
     JobNode *job = jobs.head;
@@ -303,47 +259,28 @@ void findTopResumesForJob(ResumeLinkedList &resumes, JobLinkedList &jobs,
     TopMatch top5[5];
     int count = 0;
 
-    // measure scan phase
-    int scanned = 0, positive = 0;
-    clock_t scanBeg = clock();
-
     ResumeNode *resume = resumes.head;
     while (resume) {
         double score = calculateWeightedScore(resume->resumeDescription,
                                               job->jobDescription, skills);
         keepTopFive(top5, count, resume->resumeId, score);
-        if (score > 0.0) positive++;
-        scanned++;
         resume = resume->next;
     }
-    clock_t scanEnd = clock();
 
-    // measure linked-list bubble sort of Top-5
-    clock_t sortBeg = clock();
-    TopMatchNode* lst = topArrayToList(top5, count);
-    bubbleSortListDesc(lst);
-    clock_t sortEnd = clock();
+    clock_t end = clock();
+    double elapsed = double(end - start) / CLOCKS_PER_SEC;
 
-    cout.setf(std::ios::fixed);
-    cout << setprecision(2);
+    cout << "\nExecution time: " << fixed << setprecision(2)
+         << elapsed << " seconds\n";
+
+    // sort before printing
+    bubbleSortTop(top5, count);
 
     cout << "\nTop 5 results for Job " << job->jobId << ":\n";
-    int printed = 0;
-    for(TopMatchNode* p = lst; p && printed < count; p = p->next, ++printed)
-        cout << "  " << p->id << " | Score: " << p->score << endl;
-
-    cout << "Scanned resumes: " << scanned
-         << "  | Positive matches (>0): " << positive << "\n";
-    cout << "Time (scan): " << double(scanEnd - scanBeg) / CLOCKS_PER_SEC << " s\n";
-    cout << "Time (bubble sort Top-5, linked list): "
-         << double(sortEnd - sortBeg) / CLOCKS_PER_SEC << " s\n";
-
-    freeTopList(lst);
+    for (int i = 0; i < count; i++)
+        cout << "  " << top5[i].id << " | Score: " << top5[i].score << endl;
 }
 
-/* ============================ Performance Test ============================ */
-/* Old behavior: scan ALL resumes for the first 10 jobs.
-   We still keep a small Top-5 array, but the measured sort uses LINKED LIST bubble sort. */
 void runPerformanceTest(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWeightLinkedList& skillWeights) {
     cout << "\n=== Performance Test ===\n";
 
@@ -379,11 +316,8 @@ void runPerformanceTest(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWei
             resPtr = resPtr->next;
         }
 
-        // measure LINKED LIST bubble sort time on Top-5
         clock_t sortStart = clock();
-        TopMatchNode* lst = topArrayToList(top5, topCount);
-        bubbleSortListDesc(lst);
-        freeTopList(lst);
+        bubbleSortTop(top5, topCount);
         clock_t sortEnd = clock();
         double sortElapsed = double(sortEnd - sortStart) / CLOCKS_PER_SEC;
         totalSortTime += sortElapsed;
@@ -406,7 +340,7 @@ void runPerformanceTest(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWei
 
     cout << "\nAverage matching time per job: " << fixed << setprecision(2)
          << averageTime << " seconds\n";
-    cout << "Average bubble-sort time per job (Top-5, linked list): "
+    cout << "Average bubble-sort time per job (Top-5): "
          << fixed << setprecision(4) << (totalSortTime / jobsToTest) << " seconds\n";
     cout << "Total memory used: ~" << fixed << setprecision(0)
          << memoryKB << " KB (estimated)\n";
