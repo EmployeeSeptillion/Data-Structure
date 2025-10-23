@@ -23,6 +23,10 @@ struct SkillWeightNode {
     double weight;
     SkillWeightNode* next;
 };
+struct TopMatch {
+    string id;
+    double score;
+};
 
 class SkillWeightLinkedList {
 public:
@@ -174,60 +178,88 @@ void displayTopMatches(string baseId, string baseType, double scores[], string i
     }
 }
 
-void findTopJobsForResume(ResumeLinkedList& resumes, JobLinkedList& jobs, SkillWeightLinkedList& skillWeights) {
-    int resumeIndex;
-    cout << "Enter Resume index (1-" << resumes.size << "): ";
-    cin >> resumeIndex;
-
-    ResumeNode* res = resumes.head;
-    for (int i = 1; i < resumeIndex && res; i++) res = res->next;
-    if (!res) { cout << "Resume not found.\n"; return; }
-
-    double scores[1000];
-    string ids[1000];
-    int count = 0;
-
-    clock_t start = clock();
-    JobNode* job = jobs.head;
-    while (job && count < 1000) {
-        scores[count] = calculateWeightedScore(res->resumeDescription, job->jobDescription, skillWeights);
-        ids[count] = job->jobId;
-        count++;
-        job = job->next;
+// helper to maintain top 5
+void keepTopFive(TopMatch top5[], int &count, string id, double score) {
+    if (count < 5) {
+        top5[count++] = {id, score};
+    } else {
+        int minIndex = 0;
+        for (int i = 1; i < 5; i++)
+            if (top5[i].score < top5[minIndex].score) minIndex = i;
+        if (score > top5[minIndex].score)
+            top5[minIndex] = {id, score};
     }
-    clock_t end = clock();
-
-    double elapsed = double(end - start) / CLOCKS_PER_SEC;
-    cout << "\nExecution time: " << fixed << setprecision(2) << elapsed << " seconds\n";
-    displayTopMatches(res->resumeId, "Resume", scores, ids, count, 5);
 }
 
-void findTopCandidatesForJob(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWeightLinkedList& skillWeights) {
-    int jobIndex;
-    cout << "Enter Job index (1-" << jobs.size << "): ";
-    cin >> jobIndex;
 
-    JobNode* job = jobs.head;
-    for (int i = 1; i < jobIndex && job; i++) job = job->next;
-    if (!job) { cout << "Job not found.\n"; return; }
+// Find Top 5 Jobs for a given Resume
+void findTopJobsForResume(ResumeLinkedList &resumes, JobLinkedList &jobs,
+                          SkillWeightLinkedList &skills, int resumeIndex) {
+    clock_t start = clock();
 
-    double scores[1000];
-    string ids[1000];
+    // navigate to target resume
+    ResumeNode *resume = resumes.head;
+    for (int i = 1; i < resumeIndex && resume; i++) resume = resume->next;
+    if (!resume) {
+        cout << "Resume not found.\n";
+        return;
+    }
+
+    TopMatch top5[5];
     int count = 0;
 
-    clock_t start = clock();
-    ResumeNode* res = resumes.head;
-    while (res && count < 1000) {
-        scores[count] = calculateWeightedScore(res->resumeDescription, job->jobDescription, skillWeights);
-        ids[count] = res->resumeId;
-        count++;
-        res = res->next;
+    JobNode *job = jobs.head;
+    while (job) {
+        double score = calculateWeightedScore(resume->resumeDescription,
+                                           job->jobDescription, skills);
+        keepTopFive(top5, count, job->jobId, score);
+        job = job->next;
     }
-    clock_t end = clock();
 
+    clock_t end = clock();
     double elapsed = double(end - start) / CLOCKS_PER_SEC;
-    cout << "\nExecution time: " << fixed << setprecision(2) << elapsed << " seconds\n";
-    displayTopMatches(job->jobId, "Job", scores, ids, count, 5);
+
+    cout << "\nExecution time: " << fixed << setprecision(2)
+         << elapsed << " seconds\n";
+    cout << "\nTop 5 results for Resume " << resume->resumeId << ":\n";
+    for (int i = 0; i < count; i++)
+        cout << "  " << top5[i].id << " | Score: " << top5[i].score << endl;
+}
+
+
+// Find Top 5 Resumes for a given Job
+
+void findTopResumesForJob(ResumeLinkedList &resumes, JobLinkedList &jobs,
+                          SkillWeightLinkedList &skills, int jobIndex) {
+    clock_t start = clock();
+
+    // navigate to target job
+    JobNode *job = jobs.head;
+    for (int i = 1; i < jobIndex && job; i++) job = job->next;
+    if (!job) {
+        cout << "Job not found.\n";
+        return;
+    }
+
+    TopMatch top5[5];
+    int count = 0;
+
+    ResumeNode *resume = resumes.head;
+    while (resume) {
+        double score = calculateWeightedScore(resume->resumeDescription,
+                                           job->jobDescription, skills);
+        keepTopFive(top5, count, resume->resumeId, score);
+        resume = resume->next;
+    }
+
+    clock_t end = clock();
+    double elapsed = double(end - start) / CLOCKS_PER_SEC;
+
+    cout << "\nExecution time: " << fixed << setprecision(2)
+         << elapsed << " seconds\n";
+    cout << "\nTop 5 results for Job " << job->jobId << ":\n";
+    for (int i = 0; i < count; i++)
+        cout << "  " << top5[i].id << " | Score: " << top5[i].score << endl;
 }
 
 void runPerformanceTest(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWeightLinkedList& skillWeights) {
@@ -299,13 +331,23 @@ int main() {
         cout << "\n=== Job Matching System (Linked List Version) ===\n";
         cout << "1. Find Top 5 Jobs for a Resume\n";
         cout << "2. Find Top 5 Candidates for a Job\n";
-        cout << "3. Run Performance Test (Array-style)\n";
+        cout << "3. Run Performance Test\n";
         cout << "4. Exit\n";
         cout << "Enter choice: ";
         cin >> choice;
 
-        if (choice == 1) findTopJobsForResume(resumes, jobs, skillWeights);
-        else if (choice == 2) findTopCandidatesForJob(jobs, resumes, skillWeights);
+        if (choice == 1) {
+            int index;
+            cout << "Enter Resume index (1-" << resumes.size << "): ";
+            cin >> index;
+            findTopJobsForResume(resumes, jobs, skillWeights, index);
+        }
+        else if (choice == 2) {
+            int index;
+            cout << "Enter Job index (1-" << jobs.size << "): ";
+            cin >> index;
+            findTopResumesForJob(resumes, jobs, skillWeights, index);
+        }
         else if (choice == 3) runPerformanceTest(jobs, resumes, skillWeights);
         else if (choice == 4) cout << "Exiting system. Goodbye!\n";
         else cout << "Invalid choice. Try again.\n";
