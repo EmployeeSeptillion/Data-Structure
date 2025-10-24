@@ -293,16 +293,15 @@ void runPerformanceTest(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWei
         }
 
         clock_t scanEnd = clock();
-        double scanTime = double(scanEnd - scanBeg)/CLOCKS_PER_SEC;
+        double scanTime = double(scanEnd - scanBeg) / CLOCKS_PER_SEC;
 
         clock_t sortBeg = clock();
-        bubbleSortListDesc(lst);            // full list sort for this job’s results
+        bubbleSortListDesc(lst);                  // full-list sort
         clock_t sortEnd = clock();
-        double sortTime = double(sortEnd - sortBeg)/CLOCKS_PER_SEC;
+        double sortTime = double(sortEnd - sortBeg) / CLOCKS_PER_SEC;
 
-        // read first 5 to keep behavior consistent
-        int shown = 0;
-        for (TopMatchNode* p = lst; p && shown < 5; p = p->next, ++shown) { /* just touch */ }
+        // touch top 5 (optional read)
+        int shown = 0; for (TopMatchNode* p = lst; p && shown < 5; p = p->next, ++shown) {}
 
         freeTopList(lst);
 
@@ -311,13 +310,23 @@ void runPerformanceTest(JobLinkedList& jobs, ResumeLinkedList& resumes, SkillWei
 
         cout << "job " << ji << ": " << matches
              << " matches | scan " << fixed << setprecision(2) << scanTime
-             << " s | sort " << sortTime << " s | total " << total << " s\n";
+             << " s | sort " << sortTime << " s | total "
+             << setprecision(2) << total << " s\n";
     }
 
     cout << "\navg scan per job: " << fixed << setprecision(2) << (totalScan / jobsToTest) << " s\n";
     cout << "avg full-list bubble sort per job: " << fixed << setprecision(2) << (totalSort / jobsToTest) << " s\n";
     cout << "avg total per job: " << fixed << setprecision(2) << (totalAll / jobsToTest) << " s\n";
+
+    // classic estimate line (same style as your screenshot)
+    auto estimateMemoryKB = [](int jobCount, int resumeCount) -> double {
+        return (jobCount + resumeCount) * 200.0 / 1024.0; // very rough: ~200 bytes/record
+    };
+    cout << "Total memory used: ~" << fixed << setprecision(0)
+         << estimateMemoryKB(jobs.size, resumes.size) << " KB (estimated)\n";
 }
+
+
 
 int main() {
     JobLinkedList jobs;
