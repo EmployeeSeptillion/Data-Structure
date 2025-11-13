@@ -1,0 +1,11 @@
+11
+1,John Smith,Heart Attack,1,Sun Oct 12 18:15:30 2025
+2,Maria Garcia,Stroke,1,Sun Oct 12 18:15:30 2025
+3,Robert Johnson,Severe Bleeding,2,Sun Oct 12 18:15:30 2025
+4,Sarah Wilson,Difficulty Breathing,2,Sun Oct 12 18:15:30 2025
+5,Michael Brown,Broken Leg,3,Sun Oct 12 18:15:30 2025
+6,Emily Davis,High Fever,3,Sun Oct 12 18:15:30 2025
+7,David Miller,Deep Cut,3,Sun Oct 12 18:15:30 2025
+8,Lisa Anderson,Sprained Ankle,4,Sun Oct 12 18:15:30 2025
+9,James Taylor,Minor Burn,4,Sun Oct 12 18:15:30 2025
+10,Jennifer Lee,Rash,5,Sun Oct 12 18:15:30 2025
