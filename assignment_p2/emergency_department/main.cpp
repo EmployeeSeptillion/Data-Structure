@@ -1,5 +1,6 @@
 #include <iostream>
 #include "HospitalEmergency.hpp"
+#include "emergency_department.hpp"
 
 void displayMenu() {
     std::cout << "\n=== EMERGENCY DEPARTMENT MANAGEMENT SYSTEM ===" << std::endl;
@@ -33,7 +34,7 @@ void addSampleData(EmergencyDepartment& dept) {
     std::cout << "10 sample cases added successfully!" << std::endl;
 }
 
-int main() {
+void emergency_department() {
     EmergencyDepartment dept("emergency_data.txt");
     
     std::cout << "=== WELCOME TO HOSPITAL EMERGENCY DEPARTMENT ===" << std::endl;
@@ -110,5 +111,4 @@ int main() {
         
     } while (choice != 8);
     
-    return 0;
 }
