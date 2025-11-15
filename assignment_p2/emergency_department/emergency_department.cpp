@@ -1,4 +1,5 @@
 #include <iostream>
+#include <limits>
 #include "HospitalEmergency.hpp"
 #include "emergency_department.hpp"
 
@@ -18,8 +19,7 @@ void displayMenu() {
 
 void addSampleData(EmergencyDepartment& dept) {
     std::cout << "\n=== ADDING 10 SAMPLE EMERGENCY CASES ===" << std::endl;
-    
-    // Sample emergency cases with different priorities
+
     dept.logEmergencyCase("John Smith", "Heart Attack", 1);
     dept.logEmergencyCase("Maria Garcia", "Stroke", 1);
     dept.logEmergencyCase("Robert Johnson", "Severe Bleeding", 2);
@@ -30,42 +30,46 @@ void addSampleData(EmergencyDepartment& dept) {
     dept.logEmergencyCase("Lisa Anderson", "Sprained Ankle", 4);
     dept.logEmergencyCase("James Taylor", "Minor Burn", 4);
     dept.logEmergencyCase("Jennifer Lee", "Rash", 5);
-    
+
     std::cout << "10 sample cases added successfully!" << std::endl;
 }
 
 void emergency_department() {
-    EmergencyDepartment dept("emergency_data.txt");
-    
+
+    EmergencyDepartment dept("emergency_department/emergency_data.txt");
+
     std::cout << "=== WELCOME TO HOSPITAL EMERGENCY DEPARTMENT ===" << std::endl;
     std::cout << "Loading emergency department data..." << std::endl;
     dept.loadFromFile();
-    
+
     int choice;
     std::string name, type;
     int priority;
-    
+
     do {
         displayMenu();
         std::cin >> choice;
-        
+
+        // Validate menu input
         if (std::cin.fail()) {
             std::cin.clear();
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             std::cout << "Invalid input! Please enter a number between 1-8." << std::endl;
             continue;
         }
-        
+
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        
+
         switch (choice) {
-            case 1:
+
+            case 1:  // Log case
                 std::cout << "Enter patient name: ";
                 std::getline(std::cin, name);
                 std::cout << "Enter emergency type: ";
                 std::getline(std::cin, type);
                 std::cout << "Enter priority level (1-Critical to 5-Minor): ";
                 std::cin >> priority;
+
                 if (std::cin.fail()) {
                     std::cin.clear();
                     std::cout << "Invalid priority level!" << std::endl;
@@ -74,41 +78,40 @@ void emergency_department() {
                     dept.logEmergencyCase(name, type, priority);
                 }
                 break;
-                
+
             case 2:
                 dept.processMostCriticalCase();
                 break;
-                
+
             case 3:
                 dept.viewPendingEmergencyCases();
                 break;
-                
+
             case 4:
                 dept.displayDepartmentStatus();
                 break;
-                
+
             case 5:
                 dept.saveToFile();
                 break;
-                
+
             case 6:
                 dept.loadFromFile();
                 break;
-                
+
             case 7:
                 addSampleData(dept);
                 break;
-                
+
             case 8:
                 dept.saveToFile();
                 std::cout << "Thank you for using Emergency Department System!" << std::endl;
                 std::cout << "Data saved successfully. Goodbye!" << std::endl;
                 break;
-                
+
             default:
                 std::cout << "Invalid choice! Please enter a number between 1-8." << std::endl;
         }
-        
+
     } while (choice != 8);
-    
 }

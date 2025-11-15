@@ -257,7 +257,7 @@ private:
     }
     
 public:
-    EmergencyDepartment() : nextCaseID(1), dataFileName("emergency_data.txt") {}
+    EmergencyDepartment() : nextCaseID(1), dataFileName("emergency_department/emergency_data.txt") {}
     
     EmergencyDepartment(const std::string& filename) : nextCaseID(1), dataFileName(filename) {}
     

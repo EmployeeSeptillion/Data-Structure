@@ -1,3 +1,7 @@
+// To run
+// g++ -std=c++14 -o main main.cpp ambulance_dispatcher/ambulance_dispatcher.cpp patient_admission/patient_admission.cpp medical_supply/medical_supply.cpp emergency_department/emergency_department.cpp
+// ./main
+
 #include <iostream>
 #include <limits>
 using namespace std;
@@ -37,10 +41,10 @@ int main() {
             medical_supply();
             break;
         case 3:
-            emergency_department();  // runs your friend’s full system
+            emergency_department();  
             break;
         case 4:
-            ambulance_dispatcher();  // your circular queue system
+            ambulance_dispatcher();  
             break;
         case 0:
             cout << "Exiting system. Goodbye.\n";
