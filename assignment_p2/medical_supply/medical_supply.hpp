@@ -18,7 +18,7 @@ private:
     Supply stack[SIZE];
     int top = -1;
     int n = SIZE;
-    string filename = "supplies.csv";
+    string filename = "medical_supply/supplies.csv";
 
 public:
     bool isEmpty() { return (top <= -1); }
