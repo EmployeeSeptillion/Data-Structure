@@ -128,3 +128,5 @@ public:
         file.close();
     }
 };
+
+void medical_supply();
