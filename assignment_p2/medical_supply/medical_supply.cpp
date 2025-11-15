@@ -3,7 +3,7 @@
 #include <limits>
 using namespace std;
 
-int main() {
+void medical_supply() {
     SupplyStack supplyStack;
     supplyStack.loadFromFile(); // Load existing supplies
 
@@ -77,6 +77,4 @@ int main() {
             cout << "Invalid choice!\n";
         }
     } while (choice != 0);
-
-    return 0;
 }
