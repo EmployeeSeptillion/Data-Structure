@@ -86,7 +86,7 @@ public:
     }
 };
 
-int main() {
+void patient_admission() {
     PatientQueue pq;
     int choice;
     string name, condition;
@@ -140,5 +140,4 @@ int main() {
 
     } while (choice != 4);
 
-    return 0;
 }
